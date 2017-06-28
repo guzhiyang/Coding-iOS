@@ -113,6 +113,7 @@
                 make.centerY.equalTo(_timeLabel);
             }];
         }
+        _timeLabel.lineBreakMode = NSLineBreakByTruncatingMiddle;
     }
     return self;
 }
@@ -132,7 +133,7 @@
 }
 
 - (void)setVoteCount:(NSNumber *)voteCount isVoted:(BOOL)isVoted{
-    [_voteBtn setBackgroundColor:[UIColor colorWithHexString:isVoted? @"0x3BBD79": @"0xFFFFFF"]];
+    [_voteBtn setBackgroundColor:[UIColor colorWithHexString:isVoted? @"0x2EBE76": @"0xFFFFFF"]];
     [_voteBtn setTitleColor:[UIColor colorWithHexString:isVoted? @"0xFFFFFF": @"0x666666"] forState:UIControlStateNormal];
     [_voteBtn setTitle:[NSString stringWithFormat:@"+%@", voteCount] forState:UIControlStateNormal];
 }
@@ -178,6 +179,7 @@
     curBottomY += [TopicCommentCell imageCollectionViewHeightWithCount:imagesCount];
     
     [_timeLabel setY:curBottomY];
+    _timeLabel.width = _detailBtn.hidden? kScreen_Width - 40 - 2*kPaddingLeftWidth: kScreen_Width - 40 - 2*kPaddingLeftWidth - 60;
     _timeLabel.text = [NSString stringWithFormat:@"%@ 发布于 %@", _toComment.owner.name, [_toComment.created_at stringDisplay_HHmm]];
 }
 

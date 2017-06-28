@@ -17,7 +17,8 @@
 #import "SVPullToRefresh.h"
 #import "WebViewController.h"
 #import "ProjectTweetSendViewController.h"
-#import "EaseUserHeaderView.h"
+#import "UserActiveGraphCell.h"
+
 
 @interface UserOrProjectTweetsViewController ()
 @property (nonatomic, strong, readwrite) UITableView *myTableView;
@@ -81,6 +82,7 @@
     __weak typeof(self) weakSelf = self;
     _myMsgInputView = [UIMessageInputView messageInputViewWithType:UIMessageInputViewContentTypeTweet];
     _myMsgInputView.delegate = self;
+    _myMsgInputView.curProject = _curTweets.curPro;
     
     [_myTableView addInfiniteScrollingWithActionHandler:^{
         [weakSelf refreshMore];
@@ -145,6 +147,13 @@
 
 
 #pragma mark M
+- (EaseBlankPageType)blankType{
+    EaseBlankPageType blankType = ([[Login curLoginUser] isSameToUser:self.curTweets.curUser]? EaseBlankPageTypeTweet:
+                                   _curTweets.tweetType == TweetTypeProject? EaseBlankPageTypeTweetProject:
+                                   EaseBlankPageTypeTweetOther);
+    return blankType;
+}
+
 - (void)deleteTweet:(Tweet *)curTweet outTweetsIndex:(NSInteger)outTweetsIndex{
     ESWeakSelf;
     [[Coding_NetAPIManager sharedManager] request_Tweet_Delete_WithObj:curTweet andBlock:^(id data, NSError *error) {
@@ -152,7 +161,8 @@
         if (data) {
             [_self.curTweets.list removeObject:curTweet];
             [_self.myTableView reloadData];
-            [_self.view configBlankPage:([[Login curLoginUser] isSameToUser:_self.curTweets.curUser]? EaseBlankPageTypeTweet: EaseBlankPageTypeTweetOther)  hasData:(_self.curTweets.list.count > 0) hasError:NO offsetY:[_self blankPageOffsetY] reloadButtonBlock:^(id sender) {
+            
+            [_self.view configBlankPage:[_self blankType] hasData:(_self.curTweets.list.count > 0) hasError:NO offsetY:[_self blankPageOffsetY] reloadButtonBlock:^(id sender) {
                 ESStrongSelf;
                 [_self sendRequest];
             }];
@@ -190,25 +200,21 @@
 }
 
 - (void)sendRequest{
-    if (_curTweets.list.count <= 0) {
-        [self.view beginLoading];
-    }
-    if (_curTweets.tweetType == TweetTypeUserSingle && _curTweets.curUser.name.length <= 0) {
+       if (_curTweets.tweetType == TweetTypeUserSingle && _curTweets.curUser.name.length <= 0) {
         [self refreshCurUser];
         return;
     }
     
     __weak typeof(self) weakSelf = self;
     [[Coding_NetAPIManager sharedManager] request_Tweets_WithObj:_curTweets andBlock:^(id data, NSError *error) {
-        [weakSelf.refreshControl endRefreshing];
-        [weakSelf.view endLoading];
+       
         [weakSelf.myTableView.infiniteScrollingView stopAnimating];
         if (data) {
             [weakSelf.curTweets configWithTweets:data];
             [weakSelf.myTableView reloadData];
             weakSelf.myTableView.showsInfiniteScrolling = weakSelf.curTweets.canLoadMore;
         }
-        [weakSelf.view configBlankPage:([[Login curLoginUser] isSameToUser:self.curTweets.curUser]? EaseBlankPageTypeTweet: EaseBlankPageTypeTweetOther) hasData:(weakSelf.curTweets.list.count > 0) hasError:(error != nil) offsetY:[weakSelf blankPageOffsetY] reloadButtonBlock:^(id sender) {
+        [weakSelf.view configBlankPage:[weakSelf blankType] hasData:(weakSelf.curTweets.list.count > 0) hasError:(error != nil) offsetY:[weakSelf blankPageOffsetY] reloadButtonBlock:^(id sender) {
             [weakSelf sendRequest];
         }];
     }];
@@ -217,7 +223,7 @@
 - (CGFloat)blankPageOffsetY{//MeDisplayViewController
     CGFloat offsetY = 0;
     if ([self isMemberOfClass:NSClassFromString(@"MeDisplayViewController")]) {
-        offsetY = [(EaseUserHeaderView *)[self valueForKey:@"eaV"] originalHeight] + 60;
+        offsetY = ((UITableViewCell *)[self valueForKey:@"userInfoCell"]).frame.size.height + [UserActiveGraphCell cellHeight] + 80;
     }
     return offsetY;
 }
@@ -231,7 +237,7 @@
             [weakSelf sendRequest];
         }else{
             [weakSelf.view endLoading];
-            [weakSelf.view configBlankPage:([[Login curLoginUser] isSameToUser:self.curTweets.curUser]? EaseBlankPageTypeTweet: EaseBlankPageTypeTweetOther) hasData:(weakSelf.curTweets.list.count > 0) hasError:YES offsetY:[weakSelf blankPageOffsetY] reloadButtonBlock:^(id sender) {
+            [weakSelf.view configBlankPage:[weakSelf blankType] hasData:(weakSelf.curTweets.list.count > 0) hasError:YES offsetY:[weakSelf blankPageOffsetY] reloadButtonBlock:^(id sender) {
                 [weakSelf sendRequest];
             }];
         }
@@ -333,11 +339,12 @@
     curTweet.project = _curTweets.curPro;
     TweetDetailViewController *vc = [[TweetDetailViewController alloc] init];
     vc.curTweet = curTweet;
+    vc.curProject = _curTweets.curPro;
     __weak typeof(self) weakSelf = self;
     vc.deleteTweetBlock = ^(Tweet *toDeleteTweet){
         [weakSelf.curTweets.list removeObject:toDeleteTweet];
         [weakSelf.myTableView reloadData];
-        [weakSelf.view configBlankPage:([[Login curLoginUser] isSameToUser:self.curTweets.curUser]? EaseBlankPageTypeTweet: EaseBlankPageTypeTweetOther) hasData:(weakSelf.curTweets.list.count > 0) hasError:NO offsetY:[weakSelf blankPageOffsetY] reloadButtonBlock:^(id sender) {
+        [weakSelf.view configBlankPage:[weakSelf blankType] hasData:(weakSelf.curTweets.list.count > 0) hasError:NO offsetY:[weakSelf blankPageOffsetY] reloadButtonBlock:^(id sender) {
             [weakSelf sendRequest];
         }];
     };

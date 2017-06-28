@@ -77,6 +77,7 @@
     _myMsgInputView = [UIMessageInputView messageInputViewWithType:UIMessageInputViewContentTypeTweet];
     _myMsgInputView.isAlwaysShow = YES;
     _myMsgInputView.delegate = self;
+    _myMsgInputView.curProject = _curProject;
 
     UIEdgeInsets contentInsets = UIEdgeInsetsMake(0.0, 0.0,CGRectGetHeight(_myMsgInputView.frame), 0.0);
     self.myTableView.contentInset = contentInsets;
@@ -278,9 +279,9 @@
         cell.commentToCommentBlock = ^(Comment *toComment, id sender){
             [self doCommentToComment:toComment sender:sender];
         };
-        [cell.ownerIconView addTapBlock:^(id obj) {
-            [self goToUserInfo:curComment.owner];
-        }];
+//        [cell.ownerIconView addTapBlock:^(id obj) {
+//            [self goToUserInfo:curComment.owner];
+//        }];
         cell.contentLabel.delegate = self;
         [tableView addLineforPlainCell:cell forRowAtIndexPath:indexPath withLeftSpace:kPaddingLeftWidth];
         return cell;

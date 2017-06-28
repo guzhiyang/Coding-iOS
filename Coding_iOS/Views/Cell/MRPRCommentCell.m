@@ -75,6 +75,7 @@
                 make.centerY.equalTo(_timeLabel);
             }];
         }
+        _timeLabel.lineBreakMode = NSLineBreakByTruncatingMiddle;
     }
     return self;
 }
@@ -117,6 +118,7 @@
     curBottomY += [MRPRCommentCell imageCollectionViewHeightWithCount:imagesCount];
     
     [_timeLabel setY:curBottomY];
+    _timeLabel.width = _detailBtn.hidden? kScreen_Width - 40 - 2*kPaddingLeftWidth: kScreen_Width - 40 - 2*kPaddingLeftWidth - 60;
     _timeLabel.text = [NSString stringWithFormat:@"%@ %@", _curItem.author.name, [_curItem.created_at stringDisplay_HHmm]];
 }
 

@@ -53,7 +53,6 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
 @property (strong, nonatomic) NSMutableArray *mediaList, *uploadMediaList;
 
 @property (strong, nonatomic) UIButton *addButton, *emotionButton, *photoButton, *voiceButton;
-@property (strong, nonatomic) UIView *voiceRedpointView;
 
 @property (assign, nonatomic) CGFloat viewHeightOld;
 
@@ -524,14 +523,6 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
         [_voiceButton setImage:[UIImage imageNamed:@"keyboard_voice"] forState:UIControlStateNormal];
         [_voiceButton addTarget:self action:@selector(voiceButtonClicked:) forControlEvents:UIControlEventTouchUpInside];
         [self addSubview:_voiceButton];
-        
-        if ([[FunctionTipsManager shareManager] needToTip:kFunctionTipStr_VoiceMessage]) {
-            _voiceRedpointView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 7, 7)];
-            _voiceRedpointView.center = CGPointMake(31, 5);
-            _voiceRedpointView.backgroundColor = [UIColor colorWithRGBHex:0xf75288];
-            _voiceRedpointView.layer.cornerRadius = _voiceRedpointView.frame.size.width/2;
-            [_voiceButton addSubview:_voiceRedpointView];
-        }
     }
     _voiceButton.hidden = !hasVoiceBtn;
     
@@ -764,13 +755,6 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
         }
     } completion:^(BOOL finished) {
     }];
-    
-    if (_voiceRedpointView) {
-        [_voiceRedpointView removeFromSuperview];
-        self.voiceRedpointView = nil;
-        
-        [[FunctionTipsManager shareManager] markTiped:kFunctionTipStr_VoiceMessage];
-    }
 }
 
 - (void)arrowButtonClicked:(id)sender {
@@ -1014,9 +998,8 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
 
 - (void)emojiKeyBoardView:(AGEmojiKeyboardView *)emojiKeyBoardView didUseEmoji:(NSString *)emoji {
 
-    NSString *emotion_monkey = [emoji emotionMonkeyName];
+    NSString *emotion_monkey = [emoji emotionSpecailName];
     if (emotion_monkey) {
-        emotion_monkey = [NSString stringWithFormat:@" :%@: ", emotion_monkey];
         if (_delegate && [_delegate respondsToSelector:@selector(messageInputView:sendBigEmotion:)]) {
             [self.delegate messageInputView:self sendBigEmotion:emotion_monkey];
         }
@@ -1034,14 +1017,10 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
 }
 
 - (UIImage *)emojiKeyboardView:(AGEmojiKeyboardView *)emojiKeyboardView imageForSelectedCategory:(AGEmojiKeyboardViewCategoryImage)category {
-    UIImage *img;
-    if (category == AGEmojiKeyboardViewCategoryImageEmoji) {
-        img = [UIImage imageNamed:@"keyboard_emotion_emoji"];
-    }else if (category == AGEmojiKeyboardViewCategoryImageMonkey){
-        img = [UIImage imageNamed:@"keyboard_emotion_monkey"];
-    }else{
-        img = [UIImage imageNamed:@"keyboard_emotion_monkey_gif"];
-    }
+    UIImage *img = [UIImage imageNamed:(category == AGEmojiKeyboardViewCategoryImageEmoji? @"keyboard_emotion_emoji":
+                                        category == AGEmojiKeyboardViewCategoryImageMonkey? @"keyboard_emotion_monkey":
+                                        category == AGEmojiKeyboardViewCategoryImageMonkey_Gif? @"keyboard_emotion_monkey_gif":
+                                        @"keyboard_emotion_emoji_code")] ?: [UIImage new];
     return img;
 }
 

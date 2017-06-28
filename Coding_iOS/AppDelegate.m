@@ -28,6 +28,8 @@
 #import "PasswordViewController.h"
 #import "IntroductionViewController.h"
 #import "TweetSendViewController.h"
+#import "ProjectToChooseListViewController.h"
+#import "OTPListViewController.h"
 
 #import "FunctionIntroManager.h"
 #import <UMengSocial/UMSocial.h>
@@ -35,6 +37,8 @@
 #import <UMengSocial/UMSocialQQHandler.h>
 #import <evernote-cloud-sdk-ios/ENSDK/ENSDK.h>
 #import "UMSocialSinaSSOHandler.h"
+#import "Coding_NetAPIManager.h"
+#import "EADeviceToServerLog.h"
 
 #import "Tweet.h"
 #import "sys/utsname.h"
@@ -56,21 +60,16 @@
         UIUserNotificationSettings *userSettings = [UIUserNotificationSettings settingsForTypes:UIUserNotificationTypeBadge|UIUserNotificationTypeSound|UIUserNotificationTypeAlert
                                                                                      categories:[NSSet setWithObject:categorys]];
         [[UIApplication sharedApplication] registerUserNotificationSettings:userSettings];
-        [[UIApplication sharedApplication] registerForRemoteNotifications];
 #endif
     }
 }
 
 #pragma mark UserAgent
 - (void)registerUserAgent{
-    struct utsname systemInfo;
-    uname(&systemInfo);
-    NSString *deviceString = [NSString stringWithCString:systemInfo.machine encoding:NSUTF8StringEncoding];
-    NSString *userAgent = [NSString stringWithFormat:@"%@/%@ (%@; iOS %@; Scale/%0.2f)", [[[NSBundle mainBundle] infoDictionary] objectForKey:(__bridge NSString *)kCFBundleExecutableKey] ?: [[[NSBundle mainBundle] infoDictionary] objectForKey:(__bridge NSString *)kCFBundleIdentifierKey], (__bridge id)CFBundleGetValueForInfoDictionaryKey(CFBundleGetMainBundle(), kCFBundleVersionKey) ?: [[[NSBundle mainBundle] infoDictionary] objectForKey:(__bridge NSString *)kCFBundleVersionKey], deviceString, [[UIDevice currentDevice] systemVersion], ([[UIScreen mainScreen] respondsToSelector:@selector(scale)] ? [[UIScreen mainScreen] scale] : 1.0f)];
+    NSString *userAgent = [NSString userAgentStr];
     NSDictionary *dictionary = @{@"UserAgent" : userAgent};//User-Agent
     [[NSUserDefaults standardUserDefaults] registerDefaults:dictionary];
 }
-
 
 #pragma lifeCycle
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
@@ -113,7 +112,6 @@
 //    [[RRFPSBar sharedInstance] setShowsAverage:YES];
 //    [[RRFPSBar sharedInstance] setHidden:NO];
 #endif
-    
     return YES;
 }
 
@@ -158,7 +156,7 @@
     @weakify(self);
     void (^successCallback)(void) = ^(void){
         //如果变成需要注册状态
-        if(![XGPush isUnRegisterStatus] && [Login isLogin]){
+        if([XGPush isUnRegisterStatus] && [Login isLogin]){
             @strongify(self);
             [self registerPush];
         }
@@ -205,6 +203,8 @@
 #pragma clang diagnostic pop
         }
     }
+    //    Coding 报告
+    [[EADeviceToServerLog shareManager] tryToStart];
 }
 
 - (void)applicationWillTerminate:(UIApplication *)application
@@ -224,6 +224,15 @@
     DebugLog(@"didReceiveRemoteNotification-userInfo:-----\n%@", userInfo);
     [XGPush handleReceiveNotification:userInfo];
     [BaseViewController handleNotificationInfo:userInfo applicationState:[application applicationState]];
+}
+
+- (void)application:(UIApplication *)application didFailToRegisterForRemoteNotificationsWithError:(NSError *)error{
+    DebugLog(@"%@", error);
+}
+
+- (void)application:(UIApplication *)application didRegisterUserNotificationSettings:(UIUserNotificationSettings *)notificationSettings{
+    DebugLog(@"%@", notificationSettings);
+    [application registerForRemoteNotifications];
 }
 
 #pragma mark - Methods Private
@@ -423,4 +432,48 @@
     return [[[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask] lastObject];
 }
 
+#pragma mark 3D Touch
+- (void)application:(UIApplication *)application performActionForShortcutItem:(UIApplicationShortcutItem *)shortcutItem completionHandler:(void(^)(BOOL succeeded))completionHandler{
+    if ([shortcutItem.type isEqualToString:@"shortcut_2FA"]){
+        OTPListViewController *vc = [OTPListViewController new];
+        [BaseViewController presentVC:vc];
+    }else if (![Login isLogin]) {
+        UIViewController *presentingVC = [BaseViewController presentingVC];
+        if (![presentingVC isKindOfClass:[LoginViewController class]]) {
+            LoginViewController *vc = [[LoginViewController alloc] init];
+            vc.showDismissButton = YES;
+            UINavigationController *nav = [[BaseNavigationController alloc] initWithRootViewController:vc];
+            [presentingVC presentViewController:nav animated:YES completion:nil];
+        }
+    }else{
+        if ([kKeyWindow.rootViewController isKindOfClass:[RootTabViewController class]]) {
+            RootTabViewController *vc = (RootTabViewController *)kKeyWindow.rootViewController;
+            vc.selectedIndex = ([shortcutItem.type isEqualToString:@"shortcut_task"]? 1:
+                                2);
+        }
+        if ([shortcutItem.type isEqualToString:@"shortcut_task"]) {
+            ProjectToChooseListViewController *chooseVC = [[ProjectToChooseListViewController alloc] init];
+            [BaseViewController goToVC:chooseVC];
+        }else if ([shortcutItem.type isEqualToString:@"shortcut_tweet"]){
+            TweetSendViewController *vc = [[TweetSendViewController alloc] init];
+            vc.sendNextTweet = ^(Tweet *nextTweet){
+                [nextTweet saveSendData];//发送前保存草稿
+                [[Coding_NetAPIManager sharedManager] request_Tweet_DoTweet_WithObj:nextTweet andBlock:^(id data, NSError *error) {
+                    if (data) {
+                        if ([[BaseViewController presentingVC] respondsToSelector:NSSelectorFromString(@"refresh")]) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+                            [[BaseViewController presentingVC] performSelector:NSSelectorFromString(@"refresh")];
+#pragma clang diagnostic pop
+ 
+                        }
+                        [Tweet deleteSendData];//发送成功后删除草稿
+                    }
+                }];
+            };
+            [BaseViewController presentVC:vc];
+        }
+    }
+    completionHandler(YES);
+}
 @end
